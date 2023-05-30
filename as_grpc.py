@@ -29,7 +29,7 @@ def get_organizations():
     with grpc.insecure_channel(app_server) as channel:
         stub = as_pb_pb2_grpc.ApplicationServerServiceStub(channel)
         response = stub.ListOrganisation(as_pb_pb2.ListOrganizationRequest(limit=9999))
-        _logger.info(f"as:get_organizations: got list with %d organization(s) from application's server", response.total_count)
+        _logger.info("as:get_organizations: got list with %d organization(s) from application's server", response.total_count)
 
         result = {}
         for org in response.result:
