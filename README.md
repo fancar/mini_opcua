@@ -1,7 +1,7 @@
 # opc mini tits
 
-the thing dynamicaly generate opc-tree based on objectJSON recieved via HTTP POST here:
- POST http://localhost:8072
+the thing dynamicaly generates an opc-tree based on objectJSON recieved via HTTP-server by:
+ POST on http://localhost:8072
 
 opcua server endpoint
 "opc.tcp://0.0.0.0:4840/freeopcua/server/"
