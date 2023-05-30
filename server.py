@@ -2,16 +2,13 @@ import asyncio
 import logging
 import json
 import sys
-import time
 
 from asyncua import Server, ua
-# from asyncua.common.methods import uamethod
 
 from aiohttp import web
 
 import as_grpc
 
-# uri = "http://examples.freeopcua.github.io"
 uri = "ERNET OPCUA"
 web_host = '0.0.0.0'
 web_port = 8072
@@ -23,11 +20,11 @@ _logger = logging.getLogger(__name__)
 async def uplink(request):
     data = await request.json()
 
+    if 'deviceName' not in data:
+        return web.Response(status=400, text='deviceName is missing')
+
     if 'orgID' not in data:
         return web.Response(status=400, text='orgID is missing')
-
-    if 'devEUI' not in data:
-        return web.Response(status=400, text='devEUI is missing')
 
     if 'objectJSON' not in data:
         return web.Response(status=400, text='objectJSON is missing')
@@ -46,7 +43,7 @@ async def uplink(request):
 
 
     node = orgs[orgID].name
-    device = str(data['DeviceName'])
+    device = str(data['deviceName'])
 
     for key,value in items.items():
         _logger.info(f"uplink: node={node} device={device} seting key={key} with value={value}...")
