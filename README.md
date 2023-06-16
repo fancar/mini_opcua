@@ -14,4 +14,4 @@ docker build -t opc_server .
 docker run --network=host -d --name opc_server_1 opc_server
 
 ## or 
-docker run -d -p 8070:8072 -p 4840:4840 --name opc_server_1 opc_server
+docker run -d -p 8070:8072 -p 4840:4840 -v ${PWD}/:/app --name opc_server_1 opc_server
