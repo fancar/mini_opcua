@@ -7,4 +7,5 @@ RUN pip3 install -r requirements.txt
 
 COPY . .
 
+STOPSIGNAL SIGINT
 ENTRYPOINT [ "python3", "server.py"]

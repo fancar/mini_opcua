@@ -4,7 +4,7 @@ import json
 import sys
 import os
 import signal
-import functools
+# import functools
 
 from asyncua import Server, ua
 
@@ -162,13 +162,10 @@ async def opc_server(queue,cfg):
     await restore_from_file(cfg.Opcua.dumpfile)
     await set_example_node()
 
-    # await dump_to_file(dump_file)
-
-
     async with server:
         while True:
             await asyncio.sleep(1)
-
+            
 
 async def dumper(cfg):
     while True:
@@ -194,6 +191,7 @@ async def main(cfg):
         http_server(queue, cfg),
         opc_server(queue, cfg),
         dumper(cfg),
+        # signals(cfg),
         )
 
 
@@ -208,7 +206,5 @@ if __name__ == "__main__":
         asyncio.run(main(cfg), debug=False)
     except (SystemExit, KeyboardInterrupt):
         asyncio.run(shutdown(cfg))
-    except Exception as e:
-        print("recieved exception ",e)
-        raise
+
 
