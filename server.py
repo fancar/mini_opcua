@@ -207,5 +207,8 @@ if __name__ == "__main__":
     try:
         asyncio.run(main(cfg), debug=False)
     except (SystemExit, KeyboardInterrupt):
-        asyncio.run(shutdown(cfg)) 
+        asyncio.run(shutdown(cfg))
+    except Exception as e:
+        print("recieved exception ",e)
+        raise
 
