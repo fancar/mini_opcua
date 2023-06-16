@@ -3,11 +3,14 @@ import logging
 import json
 import sys
 import os
+import signal
+import functools
 
 from asyncua import Server, ua
 
 from aiohttp import web
 from setup import setup
+from time import perf_counter
 
 import as_grpc
 
@@ -115,12 +118,11 @@ async def set_example_node():
 
 async def dump_to_file(fname):
     """ saves the whole opc tree to the xml file """
-
+    t = perf_counter()
     # nodes_to_skip = ["Server","Aliases"]
-    _logger.debug("dumping data to %s ...", fname)
     data = []
 
-    root = await server.get_objects_node()
+    root = server.get_objects_node()
     orgs = await root.get_children()
 
     data = orgs
@@ -141,6 +143,7 @@ async def dump_to_file(fname):
             data = [*data,*metrics]
 
     await server.export_xml(data, fname, export_values=True)
+    _logger.info("opcua data has been dumped to %s. Took %.3f s",fname, perf_counter() - t)
 
 
 async def restore_from_file(fname):
@@ -167,20 +170,42 @@ async def opc_server(queue,cfg):
             await asyncio.sleep(1)
 
 
-async def main():
-    cfg = setup()
+async def dumper(cfg):
+    while True:
+        await asyncio.sleep(cfg.Opcua.DumpPeriod)
+        await dump_to_file(cfg.Opcua.dumpfile)
+
+
+async def shutdown(cfg):
+    _logger.info('Exit signal has been recieved. Shutting down  ...')
+    await dump_to_file(cfg.Opcua.dumpfile)
+
+    _logger.info('bye')
+
+
+async def main(cfg):
     idx = cfg.Opcua.idx
 
     as_grpc.check(cfg)
 
     queue = asyncio.Queue()
 
-    try:
-        await asyncio.gather(http_server(queue, cfg), opc_server(queue, cfg))
-    finally:
-        await dump_to_file(cfg.Opcua.dumpfile)
+    await asyncio.gather(
+        http_server(queue, cfg),
+        opc_server(queue, cfg),
+        dumper(cfg),
+        )
+
+
+
 
 if __name__ == "__main__":
+    cfg = setup()
+
     logging.basicConfig(level=logging.INFO)
 
-    asyncio.run(main(), debug=False)
+    try:
+        asyncio.run(main(cfg), debug=False)
+    except (SystemExit, KeyboardInterrupt):
+        asyncio.run(shutdown(cfg)) 
+

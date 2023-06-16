@@ -1,5 +1,4 @@
 [MAIN]
-dumpperiod = 300
 app_server = localhost:8001
 
 [server.http]
@@ -10,4 +9,5 @@ port = 8072
 idx = 2
 endpoint = opc.tcp://0.0.0.0:4840/ernetopcua/server/
 dumpfile = dump.xml
+dumpperiod = 300
 
