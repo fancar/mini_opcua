@@ -171,7 +171,7 @@ async def main():
     cfg = setup()
     idx = cfg.Opcua.idx
 
-    as_grpc.check()
+    as_grpc.check(cfg)
 
     queue = asyncio.Queue()
 

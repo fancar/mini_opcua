@@ -14,6 +14,7 @@ class OpcuaConfig:
     dumpfile: str = "dump.xml"
 
 class Config:
+    AppServer: str = "localhost:8001"
     DumpPeriod: int = 300 # dump saving period in seconds
     Web: HttpConfig = HttpConfig()
     Opcua: OpcuaConfig = OpcuaConfig()
@@ -34,6 +35,7 @@ def setup():
     if 'MAIN' in config:
         main = config['MAIN']
         result.DumpPeriod = main.get('dumpperiod', result.DumpPeriod)
+        result.AppServer = main.get('app_server', result.AppServer)
 
     if 'server.http' in config:
         httpcfg = config['server.http']
@@ -46,10 +48,6 @@ def setup():
         result.Opcua.endpoint = opccfg.get('endpoint', result.Opcua.endpoint)
         result.Opcua.dumpfile = opccfg.get('dumpfile', result.Opcua.dumpfile)
 
-    print("idx is ", result.Opcua.idx)
-    print("endpoint is ", result.Opcua.endpoint)
-    print("dumpfile is ", result.Opcua.dumpfile)
-
     return result
 
 
@@ -57,6 +55,7 @@ def write_defaults(defaults):
     config = configparser.ConfigParser()
     config['MAIN'] = {
         "dumpperiod": defaults.DumpPeriod,
+        "app_server": defaults.AppServer,
     }
 
     config['server.http'] = {

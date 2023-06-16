@@ -1,5 +1,6 @@
 [MAIN]
 dumpperiod = 300
+app_server = localhost:8001
 
 [server.http]
 host = 0.0.0.0

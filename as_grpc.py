@@ -7,18 +7,19 @@ from cachetools import cached,TTLCache
 from chirpstack_api.as_pb import as_pb_pb2_grpc 
 from chirpstack_api.as_pb import as_pb_pb2
 
-app_server = 'localhost:8001'
-
 _logger = logging.getLogger(__name__)
 
+app_server = None # temp TODO: inject it somehow
 
-def check():
+def check(cfg):
+    global app_server 
+    app_server = cfg.AppServer
     while True:
         try:
             get_organizations()
             break
         except Exception as e:
-            _logger.error("Unable to connect to AS. check your grpc connection to application's server: %s", app_server)
+            _logger.error("Unable to connect to AS. check your grpc connection to application's server: %s", cfg.AppServer)
             _logger.debug(e)
             time.sleep(5)
 
