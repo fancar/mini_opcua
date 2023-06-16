@@ -1,0 +1,12 @@
+[MAIN]
+dumpperiod = 300
+
+[server.http]
+host = 0.0.0.0
+port = 8072
+
+[server.opcua]
+idx = 2
+endpoint = opc.tcp://0.0.0.0:4840/ernetopcua/server/
+dumpfile = dump.xml
+

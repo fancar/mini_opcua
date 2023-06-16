@@ -2,16 +2,16 @@ import asyncio
 import logging
 import json
 import sys
+import os
 
 from asyncua import Server, ua
 
 from aiohttp import web
+from setup import setup
 
 import as_grpc
 
-uri = "ERNET OPCUA"
-web_host = '0.0.0.0'
-web_port = 8072
+idx = 0 # index of an opc object we are collecting all the data in
 server = Server()
 
 _logger = logging.getLogger(__name__)
@@ -56,74 +56,111 @@ async def init_webapp():
     app.add_routes([web.post('/', uplink)])
     return app
 
-async def http_server(queue):
+async def http_server(queue,cfg):
     app = await init_webapp()
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, web_host, web_port)
+    site = web.TCPSite(runner, cfg.Web.host, cfg.Web.port)
     await site.start()
 
 
 async def set_node_variable(node_name: str, device_name: str, var_name: str, var_value):
     """ обновление значений переменных """
+    _logger.info(f"set_node_variable: node={node_name} device:{device_name} setting {var_name}={var_value} ...")
 
-    root = server.nodes.objects
+    root = server.get_objects_node()
 
-    # idx = await server.register_namespace(uri)
-    idx = 2
-
-    # Проверяем, существует ли узел с таким именем
+    # first create node if it does not exist
     try:
-        # node = await root.get_child(node_name)
         node = await root.get_child(f"{idx}:{node_name}")
-        _logger.debug(f"set_node_variable: got node={idx}:{node_name}")
     except ua.uaerrors.BadNoMatch:
-        # Если узла нет, то создаем его
-        _logger.debug(f"set_node_variable: creating node object{idx}:{node_name} ...")
-        # node = await root.add_object(ua.NodeId(node_name, 2), node_name)
         node = await root.add_object(idx, node_name)
 
-    _logger.debug(f"set_node_variable: processing node {idx}:{node_name}: {node} ...")
 
-
-    # Проверяем, существует ли объект в узеле с таким именем
+    # then create a device object in the node or get it
     try:
-        # node = await root.get_child(node_name)
         device = await node.get_child(f"{idx}:{device_name}")
-        _logger.debug(f"set_node_variable: node {node} got device={idx}:{device_name}")
     except ua.uaerrors.BadNoMatch:
-        # Если узла нет, то создаем его
-        _logger.debug(f"set_node_variable: creating node device object with name {device_name} ...")
-        # node = await root.add_object(ua.NodeId(node_name, 2), node_name)
         device = await node.add_object(idx, device_name)
 
-    _logger.debug(f"set_node_variable: node {node_name}: {node}")
-
+    # and finnaly save the variable
     var_node = None
     try:
         var_node = await root.get_child([f"{idx}:{node_name}", f"{idx}:{device_name}", f"{idx}:{var_name}"])
-        _logger.debug(f"set_node_variable: {idx}:{node_name}->{idx}:{device_name}->{idx}:{var_name} found value={var_node.get_value()}")
-        
-        # _logger.debug(f"set_node_variable: setting {var_node} new value ...")
-        _logger.debug("set_node_variable: Set value of %s to %.1f ...", var_node, var_value)
-        # Если переменная уже существует, то устанавливаем ей новое значение
         await var_node.write_value(var_value)
 
     except ua.uaerrors.BadNoMatch:
-        _logger.debug(f"set_node_variable: {idx}:{node_name}->{idx}:{device_name}->{idx}:{var_name}  adding the variable ...")
-
         var_node = await device.add_variable(idx, var_name, var_value)
         await var_node.set_writable(True)
 
     return var_node
 
-
-async def opc_server(queue):
-    """ opcua server implementation """
-    # setup our server
+async def set_example_node():
+    """ the node is just to show off.
+     When no data transfered yet we have to show at least something """
+    await set_node_variable(
+        node_name="example",
+        device_name="example_device",
+        var_name="voltage",
+        var_value="3.7"
+        )
     
+    await set_node_variable(
+        node_name="example",
+        device_name="example_device",
+        var_name="current",
+        var_value="2.1"
+        )
+
+
+async def dump_to_file(fname):
+    """ saves the whole opc tree to the xml file """
+
+    # nodes_to_skip = ["Server","Aliases"]
+    _logger.debug("dumping data to %s ...", fname)
+    data = []
+
+    root = await server.get_objects_node()
+    orgs = await root.get_children()
+
+    data = orgs
+
+    for org in orgs:
+        # org_name = await org.read_display_name()
+        # if nodes_to_skip in nodes_to_skip:
+        #     continue
+        # print("org_name: ",org_name)
+
+        devices = await org.get_children()
+        data = [*data,*devices]
+
+        for device in devices:
+            # deviceName = await org.read_display_name()
+            
+            metrics = await device.get_variables()
+            data = [*data,*metrics]
+
+    await server.export_xml(data, fname, export_values=True)
+
+
+async def restore_from_file(fname):
+    if not os.path.isfile(fname):
+        _logger.info("there is no dump file: %s. Starting from scratch ...", fname)
+        return
+    _logger.info("restoring data from %s ...", fname)
+    await server.import_xml(fname, strict_mode=False)
+
+
+async def opc_server(queue,cfg):
+    """ opcua server implementation """
     await server.init()
-    server.set_endpoint("opc.tcp://0.0.0.0:4840/freeopcua/server/")
+    server.set_endpoint(cfg.Opcua.endpoint)
+
+    await restore_from_file(cfg.Opcua.dumpfile)
+    await set_example_node()
+
+    # await dump_to_file(dump_file)
+
 
     async with server:
         while True:
@@ -131,12 +168,19 @@ async def opc_server(queue):
 
 
 async def main():
+    cfg = setup()
+    idx = cfg.Opcua.idx
+
     as_grpc.check()
 
     queue = asyncio.Queue()
-    await asyncio.gather(http_server(queue), opc_server(queue))
 
+    try:
+        await asyncio.gather(http_server(queue, cfg), opc_server(queue, cfg))
+    finally:
+        await dump_to_file(cfg.Opcua.dumpfile)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    asyncio.run(main(), debug=True)
+    logging.basicConfig(level=logging.INFO)
+
+    asyncio.run(main(), debug=False)
