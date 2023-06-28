@@ -11,6 +11,7 @@ from asyncua import Server, ua
 from aiohttp import web
 from setup import setup
 from time import perf_counter
+from datetime import datetime
 
 import as_grpc
 
@@ -156,10 +157,23 @@ async def restore_from_file(fname):
 
 async def opc_server(queue,cfg):
     """ opcua server implementation """
+
+    server._application_uri = "urn:opcua:ernet:server"
     await server.init()
-    server.set_endpoint(cfg.Opcua.endpoint)
 
     await restore_from_file(cfg.Opcua.dumpfile)
+
+
+    await server.set_build_info(
+        product_uri="urn:opcua.er-telecom:ernet:server",
+        manufacturer_name="Enforta Team",
+        product_name="OpcUa Ernet Server",
+        software_version="v0.1",
+        build_number="0",
+        build_date=datetime.now(),
+        )
+
+
     await set_example_node()
 
     async with server:
